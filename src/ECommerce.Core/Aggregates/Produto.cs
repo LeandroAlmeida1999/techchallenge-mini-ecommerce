@@ -4,6 +4,11 @@ namespace ECommerce.Core.Aggregates;
 
 public sealed class Produto : AggregateRoot
 {
+    private Produto()
+    {
+        Nome = string.Empty;
+    }
+
     public Guid ProdutoId { get; private set; }
     public string Nome { get; private set; }
     public Money Preco { get; private set; }

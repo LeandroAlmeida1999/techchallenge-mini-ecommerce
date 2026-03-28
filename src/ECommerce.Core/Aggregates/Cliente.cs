@@ -4,6 +4,12 @@ namespace ECommerce.Core.Aggregates;
 
 public sealed class Cliente : AggregateRoot
 {
+    private Cliente()
+    {
+        Nome = string.Empty;
+        Email = new Email("placeholder@local.test");
+    }
+
     public Guid ClienteId { get; private set; }
     public string Nome { get; private set; }
     public Email Email { get; private set; }

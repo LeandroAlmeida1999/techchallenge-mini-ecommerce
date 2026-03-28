@@ -12,13 +12,19 @@ builder.Services
 
 var app = builder.Build();
 
+await app.Services.ApplyInfrastructureMigrationsAsync();
+
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 app.MapRootEndpoints();
+app.MapClientesEndpoints();
+app.MapProdutosEndpoints();
+app.MapPedidosEndpoints();
 
 app.Run();

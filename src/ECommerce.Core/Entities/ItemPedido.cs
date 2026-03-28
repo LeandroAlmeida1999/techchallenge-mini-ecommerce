@@ -4,6 +4,10 @@ namespace ECommerce.Core.Entities;
 
 public sealed class ItemPedido
 {
+    private ItemPedido()
+    {
+    }
+
     public Guid ProdutoId { get; private set; }
     public Quantidade Quantidade { get; private set; }
     public Money PrecoUnitario { get; private set; }

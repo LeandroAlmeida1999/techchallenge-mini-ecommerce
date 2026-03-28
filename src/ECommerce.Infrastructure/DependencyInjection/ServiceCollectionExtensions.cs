@@ -1,4 +1,7 @@
+using ECommerce.Core.Interfaces;
+using ECommerce.Infrastructure.Kafka;
 using ECommerce.Infrastructure.Persistence;
+using ECommerce.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +17,13 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<ECommerceDbContext>(options =>
             options.UseSqlServer(connectionString));
+        services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
+
+        services.AddScoped<IClienteRepository, ClienteRepository>();
+        services.AddScoped<IProdutoRepository, ProdutoRepository>();
+        services.AddScoped<IPedidoRepository, PedidoRepository>();
+        services.AddScoped<IOutboxRepository, OutboxRepository>();
+        services.AddScoped<IIntegrationEventPublisher, KafkaIntegrationEventPublisher>();
 
         return services;
     }

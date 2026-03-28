@@ -11,6 +11,10 @@ public sealed class Pedido : AggregateRoot
 {
     private readonly List<ItemPedido> _itens = [];
 
+    private Pedido()
+    {
+    }
+
     public Guid PedidoId { get; private set; }
     public Guid ClienteId { get; private set; }
     public StatusPedido Status { get; private set; }
