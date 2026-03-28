@@ -10,15 +10,15 @@ public static class RootEndpoints
             status = "bootstrapped",
             documentation = "/swagger"
         }))
-        .WithTags("Root")
-        .WithName("GetApiRoot");
+        .WithName("GetApiRoot")
+        .ExcludeFromDescription();
 
         endpoints.MapGet("/health", () => Results.Ok(new
         {
             status = "healthy"
         }))
-        .WithTags("Health")
-        .WithName("GetHealth");
+        .WithName("GetHealth")
+        .ExcludeFromDescription();
 
         return endpoints;
     }

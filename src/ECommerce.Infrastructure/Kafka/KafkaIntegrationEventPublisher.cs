@@ -6,19 +6,23 @@ namespace ECommerce.Infrastructure.Kafka;
 
 public sealed class KafkaIntegrationEventPublisher(
     IOptions<KafkaOptions> options,
-    ILogger<KafkaIntegrationEventPublisher> logger) : IIntegrationEventPublisher
+    ILogger<KafkaIntegrationEventPublisher> logger) : IIntegrationEventPublisher, IDisposable
 {
+    private readonly IProducer<Null, string> _producer = new ProducerBuilder<Null, string>(new ProducerConfig
+    {
+        BootstrapServers = options.Value.BootstrapServers
+    }).Build();
+
     public Task PublishAsync(string topic, string payload, CancellationToken cancellationToken = default)
     {
-        var config = new ProducerConfig
-        {
-            BootstrapServers = options.Value.BootstrapServers
-        };
-
-        using var producer = new ProducerBuilder<Null, string>(config).Build();
-
         logger.LogInformation("Publishing integration event to Kafka topic '{Topic}'.", topic);
 
-        return producer.ProduceAsync(topic, new Message<Null, string> { Value = payload }, cancellationToken);
+        return _producer.ProduceAsync(topic, new Message<Null, string> { Value = payload }, cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        _producer.Flush(TimeSpan.FromSeconds(10));
+        _producer.Dispose();
     }
 }

@@ -1,5 +1,6 @@
 using ECommerce.Core.Interfaces;
 using ECommerce.Infrastructure.Kafka;
+using ECommerce.Infrastructure.Outbox;
 using ECommerce.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -23,7 +24,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IProdutoRepository, ProdutoRepository>();
         services.AddScoped<IPedidoRepository, PedidoRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository>();
-        services.AddScoped<IIntegrationEventPublisher, KafkaIntegrationEventPublisher>();
+        services.AddSingleton<IIntegrationEventPublisher, KafkaIntegrationEventPublisher>();
+        services.AddScoped<IOutboxProcessor, OutboxProcessor>();
 
         return services;
     }
