@@ -7,7 +7,8 @@ namespace ECommerce.UseCases.Pedidos.Commands;
 
 public sealed class ConfirmarPedidoHandler(
     IPedidoRepository pedidoRepository,
-    CalculadoraPedidoDomainService calculadoraPedidoDomainService)
+    CalculadoraPedidoDomainService calculadoraPedidoDomainService,
+    ValidadorConfirmacaoPedidoDomainService validadorConfirmacaoPedidoDomainService)
 {
     public async Task<PedidoDto> HandleAsync(ConfirmarPedidoCommand command, CancellationToken cancellationToken = default)
     {
@@ -18,7 +19,7 @@ public sealed class ConfirmarPedidoHandler(
         if (pedido is null)
             throw new NotFoundException($"Pedido '{command.PedidoId}' nao encontrado.");
 
-        pedido.Confirmar(calculadoraPedidoDomainService);
+        pedido.Confirmar(calculadoraPedidoDomainService, validadorConfirmacaoPedidoDomainService);
 
         await pedidoRepository.UpdateAsync(pedido, cancellationToken);
 

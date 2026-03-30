@@ -74,17 +74,15 @@ public sealed class Pedido : AggregateRoot
         RecalcularTotal(calculadora);
     }
 
-    public void Confirmar(CalculadoraPedidoDomainService calculadora)
+    public void Confirmar(
+        CalculadoraPedidoDomainService calculadora,
+        ValidadorConfirmacaoPedidoDomainService validadorConfirmacao)
     {
         ArgumentNullException.ThrowIfNull(calculadora);
-
-        if (Status == StatusPedido.Confirmado)
-            throw new DomainException("Pedido ja foi confirmado.");
-
-        if (_itens.Count == 0)
-            throw new DomainException("Pedido nao pode ser confirmado sem itens.");
+        ArgumentNullException.ThrowIfNull(validadorConfirmacao);
 
         RecalcularTotal(calculadora);
+        validadorConfirmacao.Validar(Status, _itens.Count, ValorTotal.Valor);
 
         Status = StatusPedido.Confirmado;
 

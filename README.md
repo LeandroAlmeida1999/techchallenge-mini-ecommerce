@@ -1,6 +1,6 @@
 # ECommerce technical challenge
 
-Mini e-commerce backend em `.NET 10` com DDD, Clean Architecture, Minimal APIs, EF Core, SQL Server 2022, Outbox Pattern e worker de publicação para Kafka.
+Mini e-commerce backend em `.NET 10` com DDD, Clean Architecture, Minimal APIs, EF Core, SQL Server 2022, Outbox Pattern e worker de publicacao para Kafka.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Mini e-commerce backend em `.NET 10` com DDD, Clean Architecture, Minimal APIs, 
 - Kafka via `Confluent.Kafka`
 - xUnit
 
-## Estrutura da solução
+## Estrutura da solucao
 
 ```text
 src/
@@ -28,52 +28,52 @@ tests/
   ECommerce.UnitTests/
 ```
 
-## Visão de arquitetura
+## Visao de arquitetura
 
-O projeto foi organizado com direção de dependências compatível com Clean Architecture:
+O projeto foi organizado com direcao de dependencias compativel com Clean Architecture:
 
 - `ECommerce.Core`
-  Contém o domínio puro: agregados, entidade, value objects, domain events, domain service, exceções e contratos de repositório.
+  Contem o dominio puro: agregados, entidade, value objects, domain events, domain service, excecoes e contratos de repositorio.
 
 - `ECommerce.UseCases`
-  Contém comandos, queries, handlers e DTOs de aplicação. Essa camada orquestra o fluxo, mas não conhece HTTP nem detalhes de persistência.
+  Contem comandos, queries, handlers e DTOs de aplicacao. Essa camada orquestra o fluxo, mas nao conhece HTTP nem detalhes de persistencia.
 
 - `ECommerce.Infrastructure`
-  Contém EF Core, configurações de mapeamento, repositórios, outbox, migration inicial e integração com Kafka.
+  Contem EF Core, configuracoes de mapeamento, repositorios, outbox, migration inicial e integracao com Kafka.
 
 - `ECommerce.WebApi`
-  Expõe os endpoints Minimal API, contratos HTTP, Swagger e tratamento consistente de erros com `ProblemDetails`.
+  Expoe os endpoints Minimal API, contratos HTTP, Swagger e tratamento consistente de erros com `ProblemDetails`.
 
 - `ECommerce.Worker`
-  Processa mensagens pendentes do outbox e tenta publicá-las no Kafka.
+  Processa mensagens pendentes do outbox e tenta publica-las no Kafka.
 
-## Decisões adotadas
+## Decisoes adotadas
 
-- Os agregados principais são `Cliente`, `Produto` e `Pedido`, usando linguagem de domínio em português para favorecer clareza.
-- O `Pedido` encapsula adição de itens, remoção, recálculo do total e confirmação.
-- `ItemPedido` permanece dentro do agregado `Pedido` e não possui repositório próprio.
-- `Email`, `Money` e `Quantidade` foram implementados como value objects imutáveis com validações.
-- O mapeamento para DTOs foi mantido explícito, sem `AutoMapper`, para deixar o fluxo mais fácil de entender e explicar.
-- O Outbox é a fonte de verdade para publicação de eventos de integração após a confirmação do pedido.
-- O worker foi mantido enxuto e delega a lógica de processamento para um `OutboxProcessor`, o que melhora separação de responsabilidades.
+- Os agregados principais sao `Cliente`, `Produto` e `Pedido`, usando linguagem de dominio em portugues para favorecer clareza.
+- O `Pedido` encapsula adicao de itens, remocao, recalculo do total e confirmacao.
+- `ItemPedido` permanece dentro do agregado `Pedido` e nao possui repositorio proprio.
+- `Email`, `Money` e `Quantidade` foram implementados como value objects imutaveis com validacoes.
+- O mapeamento para DTOs foi mantido explicito, sem `AutoMapper`, para deixar o fluxo mais facil de entender e explicar.
+- O Outbox e a fonte de verdade para publicacao de eventos de integracao apos a confirmacao do pedido.
+- O worker foi mantido enxuto e delega a logica de processamento para um `OutboxProcessor`, o que melhora separacao de responsabilidades.
 
 ## Fluxo principal
 
-1. A API recebe a requisição.
-2. O handler da aplicação carrega o agregado necessário.
-3. O domínio executa a regra de negócio.
-4. Ao confirmar o pedido, o domínio gera `PedidoConfirmadoDomainEvent`.
-5. A infraestrutura traduz o evento para `PedidoConfirmadoIntegrationEvent` e persiste uma linha na tabela de outbox na mesma transação do pedido.
-6. O worker lê mensagens pendentes do outbox.
+1. A API recebe a requisicao.
+2. O handler da aplicacao carrega o agregado necessario.
+3. O dominio executa a regra de negocio.
+4. Ao confirmar o pedido, o dominio gera `PedidoConfirmadoDomainEvent`.
+5. A infraestrutura traduz o evento para `PedidoConfirmadoIntegrationEvent` e persiste uma linha na tabela de outbox na mesma transacao do pedido.
+6. O worker le mensagens pendentes do outbox.
 7. O worker publica no Kafka.
-8. A mensagem é marcada como processada ou falha.
+8. A mensagem e marcada como processada ou falha.
 
-## Persistência
+## Persistencia
 
 - Banco: SQL Server 2022
 - ORM: EF Core
-- Migrations: incluídas no projeto de infraestrutura
-- Aplicação automática das migrations:
+- Migrations: incluidas no projeto de infraestrutura
+- Aplicacao automatica das migrations:
   - Web API no startup
   - Worker no startup
 
@@ -85,7 +85,7 @@ Tabelas principais criadas pela migration inicial:
 - `PedidoItens`
 - `OutboxMessages`
 
-## Endpoints disponíveis
+## Endpoints disponiveis
 
 ### Clientes
 
@@ -154,7 +154,7 @@ docker compose logs -f worker
 docker compose down
 ```
 
-## Execução local sem Docker
+## Execucao local sem Docker
 
 ### API
 
@@ -168,22 +168,22 @@ dotnet run --project src/ECommerce.WebApi
 dotnet run --project src/ECommerce.Worker
 ```
 
-## Configurações importantes
+## Configuracoes importantes
 
-Connection string padrão:
+Connection string padrao:
 
 ```text
 Server=localhost,1433;Database=ECommerceDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True
 ```
 
-Configuração Kafka padrão do worker:
+Configuracao Kafka padrao do worker:
 
 ```text
 BootstrapServers=host.docker.internal:9092
 Topic=pedido-confirmado
 ```
 
-Quando o Kafka estiver rodando fora do compose principal, o `worker` usa `host.docker.internal` para alcançar a máquina host.
+Quando o Kafka estiver rodando fora do compose principal, o `worker` usa `host.docker.internal` para alcancar a maquina host.
 
 ## Testes
 
@@ -199,52 +199,34 @@ Executar testes:
 dotnet test tests/ECommerce.UnitTests/ECommerce.UnitTests.csproj
 ```
 
-Cobertura atual de domínio:
+Cobertura atual de dominio:
 
 - total do pedido
-- pedido sem itens não pode ser confirmado
-- e-mail inválido lança exceção
-- produto inativo não pode ser adicionado ao pedido
-- remoção de item recalcula total
-- pedido já confirmado não pode ser confirmado novamente
+- pedido sem itens nao pode ser confirmado
+- e-mail invalido lanca excecao
+- produto inativo nao pode ser adicionado ao pedido
+- remocao de item recalcula total
+- pedido ja confirmado nao pode ser confirmado novamente
 
-## Revisão final
+## Revisao final
 
-### Consistência de nomes
+### Consistencia de nomes
 
-- Os nomes principais estão consistentes com o domínio e com a linguagem do teste.
-- Termos técnicos foram mantidos em inglês quando ligados à infraestrutura, como `Outbox`, `Worker` e `Kafka`.
+- Os nomes principais estao consistentes com o dominio e com a linguagem do teste.
+- Termos tecnicos foram mantidos em ingles quando ligados a infraestrutura, como `Outbox`, `Worker` e `Kafka`.
 
 ### Fronteiras arquiteturais
 
-- `Core` permanece sem dependência de outras camadas.
+- `Core` permanece sem dependencia de outras camadas.
 - `UseCases` depende apenas de `Core`.
-- `Infrastructure` implementa persistência e integrações técnicas.
-- `WebApi` e `Worker` apenas compõem e executam os fluxos.
+- `Infrastructure` implementa persistencia e integracoes tecnicas.
+- `WebApi` e `Worker` apenas compoem e executam os fluxos.
 
-### Invariantes de domínio
+### Invariantes de dominio
 
-- cliente exige nome e email válido
-- produto exige nome e preço válido
+- cliente exige nome e email valido
+- produto exige nome e preco valido
 - pedido inicia em rascunho
-- pedido não aceita produto inativo
-- pedido confirmado não aceita novas alterações
-- pedido não pode ser confirmado sem itens
-
-## Riscos e trade-offs remanescentes
-
-- O `worker` está pronto para publicar no Kafka, mas o ambiente Kafka externo não foi validado neste repositório via `docker compose`.
-- O `docker compose up` não foi executado a partir deste ambiente automatizado porque o comando `docker` não estava disponível aqui.
-- O publisher Kafka já reutiliza o producer para reduzir alocação, mas ainda não há testes de integração cobrindo publicação real.
-- Não foram adicionados testes automatizados para os handlers de aplicação nem para os endpoints HTTP, porque o foco obrigatório da spec era domínio.
-- O `worker` faz polling simples no outbox. Para o escopo do teste isso é suficiente, mas ainda há espaço para tuning de batch, retry e observabilidade.
-
-## Pronto para entrevista
-
-Os pontos mais fáceis de explicar durante a conversa técnica são:
-
-- por que `Pedido` é a raiz do agregado dos itens
-- por que value objects foram usados no domínio
-- por que os mapeamentos de DTO são explícitos
-- como o Outbox garante persistência atômica antes da publicação
-- como as responsabilidades foram separadas entre `Core`, `UseCases`, `Infrastructure`, `WebApi` e `Worker`
+- pedido nao aceita produto inativo
+- pedido confirmado nao aceita novas alteracoes
+- pedido nao pode ser confirmado sem itens

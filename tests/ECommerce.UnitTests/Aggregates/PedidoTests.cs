@@ -10,6 +10,7 @@ namespace ECommerce.UnitTests.Aggregates;
 public sealed class PedidoTests
 {
     private static readonly CalculadoraPedidoDomainService Calculadora = new();
+    private static readonly ValidadorConfirmacaoPedidoDomainService ValidadorConfirmacao = new();
 
     [Fact]
     public void Deve_atualizar_total_ao_adicionar_item()
@@ -41,7 +42,7 @@ public sealed class PedidoTests
     {
         var pedido = Pedido.Criar(Guid.NewGuid());
 
-        var exception = Assert.Throws<DomainException>(() => pedido.Confirmar(Calculadora));
+        var exception = Assert.Throws<DomainException>(() => pedido.Confirmar(Calculadora, ValidadorConfirmacao));
 
         Assert.Equal("Pedido nao pode ser confirmado sem itens.", exception.Message);
     }
@@ -53,9 +54,9 @@ public sealed class PedidoTests
         var produto = Produto.Criar("Mouse", new Money(50m));
 
         pedido.AdicionarItem(produto, new Quantidade(1), Calculadora);
-        pedido.Confirmar(Calculadora);
+        pedido.Confirmar(Calculadora, ValidadorConfirmacao);
 
-        var exception = Assert.Throws<DomainException>(() => pedido.Confirmar(Calculadora));
+        var exception = Assert.Throws<DomainException>(() => pedido.Confirmar(Calculadora, ValidadorConfirmacao));
 
         Assert.Equal("Pedido ja foi confirmado.", exception.Message);
     }
@@ -79,10 +80,23 @@ public sealed class PedidoTests
         var produto = Produto.Criar("Mouse", new Money(50m));
 
         pedido.AdicionarItem(produto, new Quantidade(2), Calculadora);
-        pedido.Confirmar(Calculadora);
+        pedido.Confirmar(Calculadora, ValidadorConfirmacao);
 
         Assert.Equal(StatusPedido.Confirmado, pedido.Status);
         Assert.Single(pedido.DomainEvents);
         Assert.IsType<PedidoConfirmadoDomainEvent>(pedido.DomainEvents.Single());
+    }
+
+    [Fact]
+    public void Nao_deve_confirmar_pedido_com_total_zerado()
+    {
+        var pedido = Pedido.Criar(Guid.NewGuid());
+        var produto = Produto.Criar("Mouse", Money.Zero);
+
+        pedido.AdicionarItem(produto, new Quantidade(1), Calculadora);
+
+        var exception = Assert.Throws<DomainException>(() => pedido.Confirmar(Calculadora, ValidadorConfirmacao));
+
+        Assert.Equal("Pedido precisa ter valor total maior que zero para ser confirmado.", exception.Message);
     }
 }

@@ -14,6 +14,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddUseCases(this IServiceCollection services)
     {
         services.AddScoped<CalculadoraPedidoDomainService>();
+        services.AddScoped<ValidadorConfirmacaoPedidoDomainService>();
         services.AddScoped<CriarClienteHandler>();
         services.AddScoped<ObterClientePorIdHandler>();
         services.AddScoped<CriarProdutoHandler>();
