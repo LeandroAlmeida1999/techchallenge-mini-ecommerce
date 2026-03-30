@@ -1,6 +1,6 @@
-# ECommerce technical challenge
+# ECommerce Technical Challenge
 
-Mini e-commerce backend em `.NET 10` com DDD, Clean Architecture, Minimal APIs, EF Core, SQL Server 2022, Outbox Pattern e worker de publicação para Kafka.
+Mini e-commerce backend em `.NET 10` com DDD, Clean Architecture, Minimal APIs, EF Core, SQL Server 2022, Outbox Pattern e worker de publicacao para Kafka.
 
 ## Stack
 
@@ -15,7 +15,7 @@ Mini e-commerce backend em `.NET 10` com DDD, Clean Architecture, Minimal APIs, 
 - Strimzi
 - xUnit
 
-## Estrutura da solução
+## Estrutura da Solucao
 
 ```text
 src/
@@ -30,45 +30,49 @@ tests/
 
 deploy/
   strimzi/
+
+scripts/
+  start-local.ps1
+  start-app-only.ps1
+  smoke-test.ps1
+  stop-local.ps1
 ```
 
-## Visão de arquitetura
-
-O projeto foi organizado com direção de dependências compativel com Clean Architecture:
+## Visao de Arquitetura
 
 - `ECommerce.Core`
-  Contém o dominio puro: agregados, entidade, value objects, domain events, domain service, exceções e contratos de repositorio.
+  Contem o dominio puro: agregados, entidade, value objects, domain events, domain services, excecoes e contratos de repositorio.
 
 - `ECommerce.UseCases`
-  Contém comandos, queries, handlers e DTOs de aplicação. Essa camada orquestra o fluxo, mas não conhece HTTP nem detalhes de persistência.
+  Contem comandos, queries, handlers e DTOs de aplicacao. Essa camada orquestra o fluxo, mas nao conhece HTTP nem detalhes de persistencia.
 
 - `ECommerce.Infrastructure`
-  Contém EF Core, configurações de mapeamento, repositórios, outbox, migrations e integração com Kafka.
+  Contem EF Core, configuracoes de mapeamento, repositorios, outbox, migrations e integracao com Kafka.
 
 - `ECommerce.WebApi`
-  Expõe os endpoints Minimal API, contratos HTTP, Swagger e tratamento consistente de erros com `ProblemDetails`.
+  Expoe os endpoints Minimal API, contratos HTTP, Swagger e tratamento consistente de erros com `ProblemDetails`.
 
 - `ECommerce.Worker`
   Processa mensagens pendentes do outbox e publica eventos no Kafka.
 
-## Decisões adotadas
+## Decisoes Adotadas
 
-- Os agregados principais são `Cliente`, `Produto` e `Pedido`.
-- O `Pedido` encapsula adição de itens, remoção, recalculo do total e confirmação.
-- `Email`, `Money` e `Quantidade` foram implementados como value objects imutaveis com validações.
-- O mapeamento para DTOs foi mantido explícito, sem `AutoMapper`.
-- O Outbox garante persistência atômica da mudança de estado do pedido e do evento de integração.
-- O worker pública com chave Kafka baseada no `ClienteId`.
+- Os agregados principais sao `Cliente`, `Produto` e `Pedido`.
+- O `Pedido` encapsula adicao de itens, remocao, recalculo do total e confirmacao.
+- `Email`, `Money` e `Quantidade` foram implementados como value objects imutaveis com validacoes.
+- O mapeamento para DTOs foi mantido explicito, sem `AutoMapper`.
+- O Outbox garante persistencia atomica da mudanca de estado do pedido e do evento de integracao.
+- O worker publica com chave Kafka baseada no `ClienteId`.
 
-## Fluxo principal
+## Fluxo Principal
 
-1. A API recebe a requisição.
-2. O handler da aplicação carrega o agregado necessário.
-3. O domínio executa a regra de negócio.
-4. ão confirmar o pedido, o domínio gera `PedidoConfirmadoDomainEvent`.
-5. A infraestrutura traduz o evento para `PedidoConfirmadoIntegrationEvent` e persiste uma linha na tabela de outbox na mesma transação do pedido.
+1. A API recebe a requisicao.
+2. O handler da aplicacao carrega o agregado necessario.
+3. O dominio executa a regra de negocio.
+4. Ao confirmar o pedido, o dominio gera `PedidoConfirmadoDomainEvent`.
+5. A infraestrutura traduz o evento para `PedidoConfirmadoIntegrationEvent` e persiste uma linha na tabela de outbox na mesma transacao do pedido.
 6. O worker le mensagens pendentes do outbox.
-7. O worker pública no tópico Kafka `pedido`.
+7. O worker publica no topico Kafka `pedido`.
 8. A mensagem e marcada como processada ou falha.
 
 ## Persistencia
@@ -76,11 +80,11 @@ O projeto foi organizado com direção de dependências compativel com Clean Arc
 - Banco: SQL Server 2022
 - ORM: EF Core
 - Migrations: incluidas no projeto de infraestrutura
-- Aplicação automática das migrations:
+- Aplicacao automatica das migrations:
   - Web API no startup
   - Worker no startup
 
-Tabelas principais criadas pela migration inicial:
+Tabelas principais:
 
 - `Clientes`
 - `Produtos`
@@ -88,7 +92,7 @@ Tabelas principais criadas pela migration inicial:
 - `PedidoItens`
 - `OutboxMessages`
 
-## Endpoints disponiveis
+## Endpoints Disponiveis
 
 ### Clientes
 
@@ -111,50 +115,15 @@ Swagger:
 
 - `/swagger`
 
-## Como executar
+## Como Executar
 
-### Atalho recomendado
+O projeto pode ser executado de quatro formas, dependendo de onde o Kafka/Strimzi ja esta rodando.
 
-Para reduzir a quantidade de comandos manuais, este repositório inclui scripts PowerShell prontos:
+### 1. Fluxo Manual com Strimzi Dedicado
 
-- subir tudo localmente com Strimzi:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
-```
+Use este fluxo quando o cluster Kafka ja existir fora deste repositorio.
 
-- subir apenas a aplicação quando o cluster Kafka já existir:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-app-only.ps1
-```
-
-- executar um smoke test do fluxo principal:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
-```
-
-- executar o smoke test e consumir uma mensagem do tópico:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -ConsumeKafka
-```
-
-- encerrar a aplicação e os `port-forward`:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\stop-local.ps1
-```
-
-Esses scripts são o caminho recomendado para avaliação rápida. O fluxo manual completo continua documentado abaixo.
-
-### Fluxo principal para avaliação
-
-O fluxo esperado é este:
-
-1. ja possui um cluster Kafka configurado com Strimzi
-2. altere apenas as informações do arquivo [docker-compose.kafka.yml]
-3. suba a aplicação com os dois arquivos de compose
-
-### 1. Quando o cluster Strimzi ja existe
-
-No arquivo [docker-compose.kafka.yml], ajustar os valores do Kafka para o ambiente fornecido.
+1. Ajuste o [docker-compose.kafka.yml] com os dados do ambiente.
 
 Exemplo:
 
@@ -166,7 +135,7 @@ Kafka__ClientId=ecommerce-worker
 Kafka__SecurityProtocol=Plaintext
 ```
 
-Se o ambiente exigir autenticação ou outro protocolo, preencher tambem:
+Se o ambiente exigir autenticacao ou outro protocolo, preencha tambem:
 
 ```text
 Kafka__SaslMechanism=...
@@ -175,71 +144,63 @@ Kafka__SaslPassword=...
 Kafka__EnableSslCertificateVerification=true
 ```
 
-Depois disso, subir a aplicação:
+2. Suba a aplicacao:
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.kafka.yml up --build -d
 ```
 
-Confirmar que os servicos ficaram de pe:
+3. Valide os containers:
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.kafka.yml ps
 ```
 
-Esperado:
-
-- `sqlserver`
-- `api`
-- `worker`
-
-Acessos:
-
-- API: `http://localhost:8080`
-- Swagger: `http://localhost:8080/swagger`
-- SQL Server: `localhost,1433`
-
-Ver logs:
+4. Execute o smoke test:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
 ```
 
-### 2. Caso não tenha um cluster Strimzi 
+5. Se quiser validar tambem a mensagem no Kafka:
 
-Este repositorio tambem inclui os manifests para subir um ambiente local com Strimzi.
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -ConsumeKafka
+```
 
-#### Pre-requisitos
+### 2. Fluxo Manual com Strimzi Cluster Local
 
-- Docker Desktop instalado e em execução
+Use este fluxo quando quiser subir o Kafka localmente com Kubernetes + Strimzi.
+
+Pre-requisitos:
+
+- Docker Desktop em execucao
 - Kubernetes habilitado no Docker Desktop
 - `kubectl` disponivel no terminal
 
-#### Validar o Kubernetes local
+1. Valide o Kubernetes local:
 
 ```powershell
 kubectl config current-context
 kubectl get nodes
 ```
 
-O contexto esperado neste ambiente e `docker-desktop`.
+O contexto esperado e `docker-desktop`.
 
-#### Criar o namespace do Kafka
+2. Crie o namespace:
 
 ```powershell
 kubectl create namespace kafka
 ```
 
-Se o namespace ja existir, o comando pode falhar sem problema.
-
-#### Instalar o Strimzi Operator
+3. Instale o Strimzi Operator:
 
 ```powershell
 kubectl apply -f "https://strimzi.io/install/latest?namespace=kafka" -n kafka
 kubectl rollout status deployment/strimzi-cluster-operator -n kafka --timeout=300s
 ```
 
-#### Subir o cluster Kafka do projeto
+4. Suba o cluster Kafka:
 
 ```powershell
 kubectl apply -f deploy/strimzi/kafkanodepool-my-cluster.yaml
@@ -247,32 +208,28 @@ kubectl apply -f deploy/strimzi/kafka-my-cluster.yaml
 kubectl wait kafka/my-cluster --for=condition=Ready --timeout=600s -n kafka
 ```
 
-#### Criar o topico usado pela aplicação
+5. Crie o topico:
 
 ```powershell
 kubectl apply -f deploy/strimzi/kafkatopic-pedido.yaml
 kubectl get kafkatopic -n kafka
 ```
 
-#### Expor o bootstrap do Strimzi para a aplicação em Docker
+6. Exponha o broker para a aplicacao:
 
-Abrir um terminal e executar:
+Em um terminal:
 
 ```powershell
 kubectl port-forward svc/my-cluster-kafka-external-bootstrap 32092:9094 -n kafka
 ```
 
-Abrir outro terminal e executar:
+Em outro terminal:
 
 ```powershell
 kubectl port-forward svc/my-cluster-dual-role-0 32090:9094 -n kafka
 ```
 
-Esses dois forwards precisam permanecer abertos enquanto a aplicação estiver rodando.
-
-#### Ajustar o `docker-compose.kafka.yml`
-
-Para esse ambiente local, manter:
+7. Confirme que o [docker-compose.kafka.yml] esta apontando para:
 
 ```text
 KafkaSettings__SectionName=Kafka
@@ -282,24 +239,81 @@ Kafka__ClientId=ecommerce-worker
 Kafka__SecurityProtocol=Plaintext
 ```
 
-#### Subir a aplicação
+8. Suba a aplicacao:
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.kafka.yml up --build -d
 ```
 
-#### Validar a mensagem no tópico `pedido`
+9. Execute o smoke test:
 
 ```powershell
-kubectl delete pod kafka-consumer-check -n kafka --ignore-not-found
-kubectl run kafka-consumer-check --image=quay.io/strimzi/kafka:0.51.0-kafka-4.2.0 -n kafka --rm -i --restart=Never --command -- bin/kafka-console-consumer.sh --bootstrap-server my-cluster-kafka-bootstrap:9092 --topic pedido --from-beginning --formatter-property print.key=true --formatter-property key.separator=" | " --max-messages 1
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -ConsumeKafka
 ```
 
-## Configuração do Kafka usada pela aplicação
+### 3. Fluxo Scriptado com Strimzi Dedicado
 
-O arquivo [docker-compose.kafka.yml] centraliza as configurações do Kafka para `api` e `worker`.
+Use este fluxo quando o cluster Kafka ja existir e voce quiser subir so a aplicacao com menos comandos.
 
-Os campos principais que podem ser alterados por ambiente são:
+1. Ajuste o [docker-compose.kafka.yml] com os dados do ambiente.
+
+2. Suba a aplicacao:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-app-only.ps1
+```
+
+3. Execute o smoke test:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
+```
+
+4. Se quiser validar tambem a mensagem no Kafka:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -ConsumeKafka
+```
+
+5. Para encerrar:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop-local.ps1
+```
+
+### 4. Fluxo Scriptado com Strimzi Cluster Local
+
+Use este fluxo quando quiser preparar Kafka local + aplicacao com o minimo de comandos.
+
+1. Suba tudo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
+```
+
+2. Execute o smoke test:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
+```
+
+3. Se quiser validar tambem a mensagem no Kafka:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -ConsumeKafka
+```
+
+4. Para encerrar:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop-local.ps1
+```
+
+## Configuracao do Kafka Usada pela Aplicacao
+
+O arquivo [docker-compose.kafka.yml] centraliza as configuracoes do Kafka para `api` e `worker`.
+
+Campos principais que podem ser alterados por ambiente:
 
 ```text
 KafkaSettings__SectionName
@@ -313,25 +327,25 @@ Kafka__SaslPassword
 Kafka__EnableSslCertificateVerification
 ```
 
-## Publicação no Kafka
+## Publicacao no Kafka
 
 O `worker` publica eventos no Kafka usando o client `.NET` `Confluent.Kafka`.
 
 Isso significa que:
 
-- o client da aplicação é o vendor Confluent
-- o broker pode ser Apache Kafka puro, Strimzi ou outro ambiente compatível com o protocolo Kafka
-- a principal diferenca entre ambientes fica concentrada em configuração, como `BootstrapServers`, protocolo de seguranca e credenciais
+- o client da aplicacao e o vendor Confluent
+- o broker pode ser Apache Kafka puro, Strimzi ou outro ambiente compativel com o protocolo Kafka
+- a principal diferenca entre ambientes fica concentrada em configuracao, como `BootstrapServers`, protocolo de seguranca e credenciais
 
-## Teste de carga (moderado)
+## Teste de Carga (Moderado)
 
-- perfil: `30` requisições por endpoint com concorrência `10`
+- perfil: `30` requisicoes por endpoint com concorrencia `10`
 - resultado HTTP: `100%` de sucesso em todos os endpoints
-- faixa de latência média: `111ms` a `127ms`
+- faixa de latencia media: `111ms` a `127ms`
 - maior `p95`: `164ms` em `POST /pedidos/{id}/confirmar`
-- outbox após o teste: `Processed = 137`, sem pendências
+- outbox apos o teste: `Processed = 137`, sem pendencias
 
-## Testes automatizados
+## Testes Automatizados
 
 Executar build:
 
@@ -347,7 +361,7 @@ dotnet test tests/ECommerce.UnitTests/ECommerce.UnitTests.csproj
 
 ## Encerramento
 
-Parar a aplicação:
+Parar a aplicacao:
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.kafka.yml down
@@ -355,7 +369,7 @@ docker compose -f docker-compose.yml -f docker-compose.kafka.yml down
 
 Parar os `port-forward`:
 
-- fechar os dois terminais em que eles estão rodando
+- fechar os dois terminais em que eles estao rodando
 - ou interromper com `Ctrl+C`
 
 Se quiser remover o topico:
@@ -371,20 +385,20 @@ kubectl delete -f deploy/strimzi/kafkanodepool-my-cluster.yaml
 kubectl delete -f deploy/strimzi/kafka-my-cluster.yaml
 ```
 
-## Revisão final
+## Revisao Final
 
-### Fronteiras arquiteturais
+### Fronteiras Arquiteturais
 
-- `Core` permanece sem dependência de outras camadas.
+- `Core` permanece sem dependencia de outras camadas.
 - `UseCases` depende apenas de `Core`.
-- `Infrastructure` implementa persistência e integrações técnicas.
+- `Infrastructure` implementa persistencia e integracoes tecnicas.
 - `WebApi` e `Worker` apenas compoem e executam os fluxos.
 
-### Invariantes de dominio
+### Invariantes de Dominio
 
-- cliente exige nome e email válido
-- produto exige nome e preço válido
+- cliente exige nome e email valido
+- produto exige nome e preco valido
 - pedido inicia em rascunho
-- pedido não aceita produto inativo
-- pedido confirmado não aceita novas alterações
-- pedido não pode ser confirmado sem itens
+- pedido nao aceita produto inativo
+- pedido confirmado nao aceita novas alteracoes
+- pedido nao pode ser confirmado sem itens
