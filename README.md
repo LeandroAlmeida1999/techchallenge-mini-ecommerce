@@ -113,9 +113,40 @@ Swagger:
 
 ## Como executar
 
+### Atalho recomendado
+
+Para reduzir a quantidade de comandos manuais, este repositório inclui scripts PowerShell prontos:
+
+- subir tudo localmente com Strimzi:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
+```
+
+- subir apenas a aplicação quando o cluster Kafka já existir:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-app-only.ps1
+```
+
+- executar um smoke test do fluxo principal:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
+```
+
+- executar o smoke test e consumir uma mensagem do tópico:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -ConsumeKafka
+```
+
+- encerrar a aplicação e os `port-forward`:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop-local.ps1
+```
+
+Esses scripts são o caminho recomendado para avaliação rápida. O fluxo manual completo continua documentado abaixo.
+
 ### Fluxo principal para avaliação
 
-O fluxo esperado e este:
+O fluxo esperado é este:
 
 1. ja possui um cluster Kafka configurado com Strimzi
 2. altere apenas as informações do arquivo [docker-compose.kafka.yml]
@@ -204,12 +235,14 @@ Se o namespace ja existir, o comando pode falhar sem problema.
 #### Instalar o Strimzi Operator
 
 ```powershell
-kubectl create -f "https://strimzi.io/install/latest?namespace=kafka" -n kafka
+kubectl apply -f "https://strimzi.io/install/latest?namespace=kafka" -n kafka
+kubectl rollout status deployment/strimzi-cluster-operator -n kafka --timeout=300s
 ```
 
 #### Subir o cluster Kafka do projeto
 
 ```powershell
+kubectl apply -f deploy/strimzi/kafkanodepool-my-cluster.yaml
 kubectl apply -f deploy/strimzi/kafka-my-cluster.yaml
 kubectl wait kafka/my-cluster --for=condition=Ready --timeout=600s -n kafka
 ```
@@ -259,7 +292,7 @@ docker compose -f docker-compose.yml -f docker-compose.kafka.yml up --build -d
 
 ```powershell
 kubectl delete pod kafka-consumer-check -n kafka --ignore-not-found
-kubectl run kafka-consumer-check --image=quay.io/strimzi/kafka:0.51.0-kafka-4.2.0 -n kafka --rm -i --restart=Never --command -- bin/kafka-console-consumer.sh --bootstrap-server my-cluster-kafka-bootstrap:9092 --topic pedido --from-beginning --property print.key=true --property key.separator=" | " --max-messages 1
+kubectl run kafka-consumer-check --image=quay.io/strimzi/kafka:0.51.0-kafka-4.2.0 -n kafka --rm -i --restart=Never --command -- bin/kafka-console-consumer.sh --bootstrap-server my-cluster-kafka-bootstrap:9092 --topic pedido --from-beginning --formatter-property print.key=true --formatter-property key.separator=" | " --max-messages 1
 ```
 
 ## Configuração do Kafka usada pela aplicação
@@ -289,6 +322,14 @@ Isso significa que:
 - o client da aplicação é o vendor Confluent
 - o broker pode ser Apache Kafka puro, Strimzi ou outro ambiente compatível com o protocolo Kafka
 - a principal diferenca entre ambientes fica concentrada em configuração, como `BootstrapServers`, protocolo de seguranca e credenciais
+
+## Teste de carga (moderado)
+
+- perfil: `30` requisições por endpoint com concorrência `10`
+- resultado HTTP: `100%` de sucesso em todos os endpoints
+- faixa de latência média: `111ms` a `127ms`
+- maior `p95`: `164ms` em `POST /pedidos/{id}/confirmar`
+- outbox após o teste: `Processed = 137`, sem pendências
 
 ## Testes automatizados
 
@@ -326,6 +367,7 @@ kubectl delete -f deploy/strimzi/kafkatopic-pedido.yaml
 Se quiser remover o cluster Kafka:
 
 ```powershell
+kubectl delete -f deploy/strimzi/kafkanodepool-my-cluster.yaml
 kubectl delete -f deploy/strimzi/kafka-my-cluster.yaml
 ```
 
