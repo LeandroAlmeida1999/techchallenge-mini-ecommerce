@@ -1,0 +1,14 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: pedido
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  topicName: pedido
+  partitions: 3
+  replicas: 1
+  config:
+    min.insync.replicas: 1
+    retention.ms: 604800000
