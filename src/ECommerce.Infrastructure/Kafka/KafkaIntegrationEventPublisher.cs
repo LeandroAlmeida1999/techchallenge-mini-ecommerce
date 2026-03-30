@@ -8,10 +8,8 @@ public sealed class KafkaIntegrationEventPublisher(
     IOptions<KafkaOptions> options,
     ILogger<KafkaIntegrationEventPublisher> logger) : IIntegrationEventPublisher, IDisposable
 {
-    private readonly IProducer<Null, string> _producer = new ProducerBuilder<Null, string>(new ProducerConfig
-    {
-        BootstrapServers = options.Value.BootstrapServers
-    }).Build();
+    private readonly IProducer<Null, string> _producer = new ProducerBuilder<Null, string>(
+        options.Value.ToProducerConfig()).Build();
 
     public Task PublishAsync(string topic, string payload, CancellationToken cancellationToken = default)
     {

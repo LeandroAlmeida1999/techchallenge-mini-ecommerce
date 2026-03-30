@@ -110,37 +110,117 @@ Swagger:
 
 ## Como executar com Docker Compose
 
-O `docker-compose.yml` atual sobe:
+Este repositorio possui dois arquivos de compose:
 
-- `sqlserver`
-- `api`
-- `worker`
+- `docker-compose.yml`
+  Sobe `sqlserver`, `api` e `worker`
 
-### Subir tudo
+- `docker-compose.kafka.yml`
+  Centraliza a configuracao do Kafka usada pelo `worker`
+
+### Fluxo unico de execucao
+
+O projeto sempre deve ser executado com os dois arquivos de compose:
 
 ```powershell
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml up --build -d
 ```
 
-### Subir apenas o banco
+### Como usar com Kafka local
+
+No arquivo `docker-compose.kafka.yml`, mantenha:
+
+```text
+Kafka__BootstrapServers=kafka:9092
+```
+
+Nesse modo, o broker definido no proprio `docker-compose.kafka.yml` sera usado pelo `worker`.
+
+### Como usar com Kafka fornecido externamente
+
+No mesmo arquivo `docker-compose.kafka.yml`, altere apenas:
+
+```text
+Kafka__BootstrapServers=host.docker.internal:9092
+```
+
+Ou substitua pelo endereco fornecido para avaliacao.
+
+Se o ambiente externo exigir autenticacao ou outro protocolo, ajuste tambem no mesmo arquivo:
+
+```text
+Kafka__SecurityProtocol=...
+Kafka__SaslMechanism=...
+Kafka__SaslUsername=...
+Kafka__SaslPassword=...
+Kafka__EnableSslCertificateVerification=true
+```
+
+### Etapas de execucao
+
+1. Ajustar o `docker-compose.kafka.yml` para o broker desejado.
+
+2. Subir o ambiente:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml up --build -d
+```
+
+3. Confirmar que os servicos ficaram de pe:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml ps
+```
+
+4. Acessar a aplicacao:
+
+- API: `http://localhost:8080`
+- Swagger: `http://localhost:8080/swagger`
+- SQL Server: `localhost,1433`
+- Kafka local para ferramentas externas, quando usado: `localhost:9094`
+
+5. Se precisar acompanhar os logs:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f
+```
+
+6. Se quiser logs por servico:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f sqlserver
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f api
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f worker
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f kafka
+```
+
+7. Para encerrar o ambiente:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml down
+```
+
+### Comandos uteis durante o desenvolvimento
+
+Subir apenas o banco:
 
 ```powershell
 docker compose up -d sqlserver
 ```
 
-### Subir banco e API
+Subir banco e API:
 
 ```powershell
 docker compose up -d sqlserver api
 ```
 
-### Verificar status
+Verificar status:
 
 ```powershell
 docker compose ps
 ```
 
-### Ver logs
+Ver logs:
 
 ```powershell
 docker compose logs -f sqlserver
@@ -148,24 +228,10 @@ docker compose logs -f api
 docker compose logs -f worker
 ```
 
-### Encerrar
+Encerrar:
 
 ```powershell
 docker compose down
-```
-
-## Execucao local sem Docker
-
-### API
-
-```powershell
-dotnet run --project src/ECommerce.WebApi
-```
-
-### Worker
-
-```powershell
-dotnet run --project src/ECommerce.Worker
 ```
 
 ## Configuracoes importantes
@@ -184,6 +250,27 @@ Topic=pedido-confirmado
 ```
 
 Quando o Kafka estiver rodando fora do compose principal, o `worker` usa `host.docker.internal` para alcancar a maquina host.
+
+Quando o `docker-compose.kafka.yml` for usado junto com o compose principal, o `worker` passa a usar automaticamente `kafka:9092`.
+
+## Publicacao no Kafka
+
+O `worker` publica eventos no Kafka usando o client `.NET` `Confluent.Kafka`.
+
+Isso significa que:
+
+- o client da aplicacao e o vendor Confluent
+- o broker pode ser Apache Kafka puro, Strimzi ou outro ambiente compativel com o protocolo Kafka
+- a principal diferenca entre ambientes fica concentrada em configuracao, como `BootstrapServers`, protocolo de seguranca e credenciais
+
+No ambiente local com `docker-compose.kafka.yml`, o `worker` sobe configurado com:
+
+```text
+Kafka__BootstrapServers=kafka:9092
+Kafka__Topic=pedido-confirmado
+Kafka__ClientId=ecommerce-worker
+Kafka__SecurityProtocol=Plaintext
+```
 
 ## Testes
 
