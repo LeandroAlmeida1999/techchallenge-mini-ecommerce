@@ -10,7 +10,7 @@ public sealed class OutboxRepository(ECommerceDbContext dbContext) : IOutboxRepo
     public async Task AddAsync(OutboxMessageData message, CancellationToken cancellationToken = default)
     {
         await dbContext.OutboxMessages.AddAsync(
-            OutboxMessage.Create(message.Id, message.EventType, message.Payload, message.OccurredOnUtc),
+            OutboxMessage.Create(message.Id, message.EventType, message.PartitionKey, message.Payload, message.OccurredOnUtc),
             cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -19,12 +19,13 @@ public sealed class OutboxRepository(ECommerceDbContext dbContext) : IOutboxRepo
     public async Task<IReadOnlyCollection<OutboxMessageData>> GetPendingAsync(int batchSize, CancellationToken cancellationToken = default)
     {
         return await dbContext.OutboxMessages
-            .Where(message => message.ProcessedOnUtc == null)
+            .Where(message => message.ProcessedOnUtc == null && message.Retries < OutboxMessage.MaxRetries)
             .OrderBy(message => message.OccurredOnUtc)
             .Take(batchSize)
             .Select(message => new OutboxMessageData(
                 message.Id,
                 message.EventType,
+                message.PartitionKey,
                 message.Payload,
                 message.OccurredOnUtc,
                 message.ProcessedOnUtc,

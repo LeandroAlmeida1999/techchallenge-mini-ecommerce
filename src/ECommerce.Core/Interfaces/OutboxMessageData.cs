@@ -3,6 +3,7 @@ namespace ECommerce.Core.Interfaces;
 public sealed record OutboxMessageData(
     Guid Id,
     string EventType,
+    string PartitionKey,
     string Payload,
     DateTime OccurredOnUtc,
     DateTime? ProcessedOnUtc,

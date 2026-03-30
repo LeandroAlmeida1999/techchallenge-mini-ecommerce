@@ -19,6 +19,10 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
             .HasMaxLength(200)
             .IsRequired();
 
+        builder.Property(message => message.PartitionKey)
+            .HasMaxLength(100)
+            .IsRequired();
+
         builder.Property(message => message.Payload)
             .IsRequired();
 
@@ -38,5 +42,13 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
 
         builder.Property(message => message.Retries)
             .IsRequired();
+
+        builder.HasIndex(message => new
+            {
+                message.ProcessedOnUtc,
+                message.Retries,
+                message.OccurredOnUtc
+            })
+            .HasDatabaseName("IX_OutboxMessages_Pending");
     }
 }

@@ -3,3 +3,4 @@ docs/
 bin/
 obj/
 TestResults/
+strimzi-*.log

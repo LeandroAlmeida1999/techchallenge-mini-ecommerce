@@ -1,6 +1,6 @@
 # ECommerce technical challenge
 
-Mini e-commerce backend em `.NET 10` com DDD, Clean Architecture, Minimal APIs, EF Core, SQL Server 2022, Outbox Pattern e worker de publicacao para Kafka.
+Mini e-commerce backend em `.NET 10` com DDD, Clean Architecture, Minimal APIs, EF Core, SQL Server 2022, Outbox Pattern e worker de publicação para Kafka.
 
 ## Stack
 
@@ -12,9 +12,10 @@ Mini e-commerce backend em `.NET 10` com DDD, Clean Architecture, Minimal APIs, 
 - SQL Server 2022
 - Docker Compose
 - Kafka via `Confluent.Kafka`
+- Strimzi
 - xUnit
 
-## Estrutura da solucao
+## Estrutura da solução
 
 ```text
 src/
@@ -26,46 +27,48 @@ src/
 
 tests/
   ECommerce.UnitTests/
+
+deploy/
+  strimzi/
 ```
 
-## Visao de arquitetura
+## Visão de arquitetura
 
-O projeto foi organizado com direcao de dependencias compativel com Clean Architecture:
+O projeto foi organizado com direção de dependências compativel com Clean Architecture:
 
 - `ECommerce.Core`
-  Contem o dominio puro: agregados, entidade, value objects, domain events, domain service, excecoes e contratos de repositorio.
+  Contém o dominio puro: agregados, entidade, value objects, domain events, domain service, exceções e contratos de repositorio.
 
 - `ECommerce.UseCases`
-  Contem comandos, queries, handlers e DTOs de aplicacao. Essa camada orquestra o fluxo, mas nao conhece HTTP nem detalhes de persistencia.
+  Contém comandos, queries, handlers e DTOs de aplicação. Essa camada orquestra o fluxo, mas não conhece HTTP nem detalhes de persistência.
 
 - `ECommerce.Infrastructure`
-  Contem EF Core, configuracoes de mapeamento, repositorios, outbox, migration inicial e integracao com Kafka.
+  Contém EF Core, configurações de mapeamento, repositórios, outbox, migrations e integração com Kafka.
 
 - `ECommerce.WebApi`
-  Expoe os endpoints Minimal API, contratos HTTP, Swagger e tratamento consistente de erros com `ProblemDetails`.
+  Expõe os endpoints Minimal API, contratos HTTP, Swagger e tratamento consistente de erros com `ProblemDetails`.
 
 - `ECommerce.Worker`
-  Processa mensagens pendentes do outbox e tenta publica-las no Kafka.
+  Processa mensagens pendentes do outbox e publica eventos no Kafka.
 
-## Decisoes adotadas
+## Decisões adotadas
 
-- Os agregados principais sao `Cliente`, `Produto` e `Pedido`, usando linguagem de dominio em portugues para favorecer clareza.
-- O `Pedido` encapsula adicao de itens, remocao, recalculo do total e confirmacao.
-- `ItemPedido` permanece dentro do agregado `Pedido` e nao possui repositorio proprio.
-- `Email`, `Money` e `Quantidade` foram implementados como value objects imutaveis com validacoes.
-- O mapeamento para DTOs foi mantido explicito, sem `AutoMapper`, para deixar o fluxo mais facil de entender e explicar.
-- O Outbox e a fonte de verdade para publicacao de eventos de integracao apos a confirmacao do pedido.
-- O worker foi mantido enxuto e delega a logica de processamento para um `OutboxProcessor`, o que melhora separacao de responsabilidades.
+- Os agregados principais são `Cliente`, `Produto` e `Pedido`.
+- O `Pedido` encapsula adição de itens, remoção, recalculo do total e confirmação.
+- `Email`, `Money` e `Quantidade` foram implementados como value objects imutaveis com validações.
+- O mapeamento para DTOs foi mantido explícito, sem `AutoMapper`.
+- O Outbox garante persistência atômica da mudança de estado do pedido e do evento de integração.
+- O worker pública com chave Kafka baseada no `ClienteId`.
 
 ## Fluxo principal
 
-1. A API recebe a requisicao.
-2. O handler da aplicacao carrega o agregado necessario.
-3. O dominio executa a regra de negocio.
-4. Ao confirmar o pedido, o dominio gera `PedidoConfirmadoDomainEvent`.
-5. A infraestrutura traduz o evento para `PedidoConfirmadoIntegrationEvent` e persiste uma linha na tabela de outbox na mesma transacao do pedido.
+1. A API recebe a requisição.
+2. O handler da aplicação carrega o agregado necessário.
+3. O domínio executa a regra de negócio.
+4. ão confirmar o pedido, o domínio gera `PedidoConfirmadoDomainEvent`.
+5. A infraestrutura traduz o evento para `PedidoConfirmadoIntegrationEvent` e persiste uma linha na tabela de outbox na mesma transação do pedido.
 6. O worker le mensagens pendentes do outbox.
-7. O worker publica no Kafka.
+7. O worker pública no tópico Kafka `pedido`.
 8. A mensagem e marcada como processada ou falha.
 
 ## Persistencia
@@ -73,7 +76,7 @@ O projeto foi organizado com direcao de dependencias compativel com Clean Archit
 - Banco: SQL Server 2022
 - ORM: EF Core
 - Migrations: incluidas no projeto de infraestrutura
-- Aplicacao automatica das migrations:
+- Aplicação automática das migrations:
   - Web API no startup
   - Worker no startup
 
@@ -108,171 +111,186 @@ Swagger:
 
 - `/swagger`
 
-## Como executar com Docker Compose
+## Como executar
 
-Este repositorio possui dois arquivos de compose:
+### Fluxo principal para avaliação
 
-- `docker-compose.yml`
-  Sobe `sqlserver`, `api` e `worker`
+O fluxo esperado e este:
 
-- `docker-compose.kafka.yml`
-  Centraliza a configuracao do Kafka usada pelo `worker`
+1. ja possui um cluster Kafka configurado com Strimzi
+2. altere apenas as informações do arquivo [docker-compose.kafka.yml]
+3. suba a aplicação com os dois arquivos de compose
 
-### Fluxo unico de execucao
+### 1. Quando o cluster Strimzi ja existe
 
-O projeto sempre deve ser executado com os dois arquivos de compose:
+No arquivo [docker-compose.kafka.yml], ajustar os valores do Kafka para o ambiente fornecido.
 
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.kafka.yml up --build -d
-```
-
-### Como usar com Kafka local
-
-No arquivo `docker-compose.kafka.yml`, mantenha:
+Exemplo:
 
 ```text
-Kafka__BootstrapServers=kafka:9092
+KafkaSettings__SectionName=Kafka
+Kafka__BootstrapServers=host.docker.internal:32092
+Kafka__Topic=pedido
+Kafka__ClientId=ecommerce-worker
+Kafka__SecurityProtocol=Plaintext
 ```
 
-Nesse modo, o broker definido no proprio `docker-compose.kafka.yml` sera usado pelo `worker`.
-
-### Como usar com Kafka fornecido externamente
-
-No mesmo arquivo `docker-compose.kafka.yml`, altere apenas:
+Se o ambiente exigir autenticação ou outro protocolo, preencher tambem:
 
 ```text
-Kafka__BootstrapServers=host.docker.internal:9092
-```
-
-Ou substitua pelo endereco fornecido para avaliacao.
-
-Se o ambiente externo exigir autenticacao ou outro protocolo, ajuste tambem no mesmo arquivo:
-
-```text
-Kafka__SecurityProtocol=...
 Kafka__SaslMechanism=...
 Kafka__SaslUsername=...
 Kafka__SaslPassword=...
 Kafka__EnableSslCertificateVerification=true
 ```
 
-### Etapas de execucao
-
-1. Ajustar o `docker-compose.kafka.yml` para o broker desejado.
-
-2. Subir o ambiente:
+Depois disso, subir a aplicação:
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.kafka.yml up --build -d
 ```
 
-3. Confirmar que os servicos ficaram de pe:
+Confirmar que os servicos ficaram de pe:
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.kafka.yml ps
 ```
 
-4. Acessar a aplicacao:
+Esperado:
+
+- `sqlserver`
+- `api`
+- `worker`
+
+Acessos:
 
 - API: `http://localhost:8080`
 - Swagger: `http://localhost:8080/swagger`
 - SQL Server: `localhost,1433`
-- Kafka local para ferramentas externas, quando usado: `localhost:9094`
 
-5. Se precisar acompanhar os logs:
+Ver logs:
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f
 ```
 
-6. Se quiser logs por servico:
+### 2. Caso não tenha um cluster Strimzi 
+
+Este repositorio tambem inclui os manifests para subir um ambiente local com Strimzi.
+
+#### Pre-requisitos
+
+- Docker Desktop instalado e em execução
+- Kubernetes habilitado no Docker Desktop
+- `kubectl` disponivel no terminal
+
+#### Validar o Kubernetes local
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f sqlserver
-docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f api
-docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f worker
-docker compose -f docker-compose.yml -f docker-compose.kafka.yml logs -f kafka
+kubectl config current-context
+kubectl get nodes
 ```
 
-7. Para encerrar o ambiente:
+O contexto esperado neste ambiente e `docker-desktop`.
+
+#### Criar o namespace do Kafka
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.kafka.yml down
+kubectl create namespace kafka
 ```
 
-### Comandos uteis durante o desenvolvimento
+Se o namespace ja existir, o comando pode falhar sem problema.
 
-Subir apenas o banco:
+#### Instalar o Strimzi Operator
 
 ```powershell
-docker compose up -d sqlserver
+kubectl create -f "https://strimzi.io/install/latest?namespace=kafka" -n kafka
 ```
 
-Subir banco e API:
+#### Subir o cluster Kafka do projeto
 
 ```powershell
-docker compose up -d sqlserver api
+kubectl apply -f deploy/strimzi/kafka-my-cluster.yaml
+kubectl wait kafka/my-cluster --for=condition=Ready --timeout=600s -n kafka
 ```
 
-Verificar status:
+#### Criar o topico usado pela aplicação
 
 ```powershell
-docker compose ps
+kubectl apply -f deploy/strimzi/kafkatopic-pedido.yaml
+kubectl get kafkatopic -n kafka
 ```
 
-Ver logs:
+#### Expor o bootstrap do Strimzi para a aplicação em Docker
+
+Abrir um terminal e executar:
 
 ```powershell
-docker compose logs -f sqlserver
-docker compose logs -f api
-docker compose logs -f worker
+kubectl port-forward svc/my-cluster-kafka-external-bootstrap 32092:9094 -n kafka
 ```
 
-Encerrar:
+Abrir outro terminal e executar:
 
 ```powershell
-docker compose down
+kubectl port-forward svc/my-cluster-dual-role-0 32090:9094 -n kafka
 ```
 
-## Configuracoes importantes
+Esses dois forwards precisam permanecer abertos enquanto a aplicação estiver rodando.
 
-Connection string padrao:
+#### Ajustar o `docker-compose.kafka.yml`
+
+Para esse ambiente local, manter:
 
 ```text
-Server=localhost,1433;Database=ECommerceDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True
+KafkaSettings__SectionName=Kafka
+Kafka__BootstrapServers=host.docker.internal:32092
+Kafka__Topic=pedido
+Kafka__ClientId=ecommerce-worker
+Kafka__SecurityProtocol=Plaintext
 ```
 
-Configuracao Kafka padrao do worker:
+#### Subir a aplicação
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml up --build -d
+```
+
+#### Validar a mensagem no tópico `pedido`
+
+```powershell
+kubectl delete pod kafka-consumer-check -n kafka --ignore-not-found
+kubectl run kafka-consumer-check --image=quay.io/strimzi/kafka:0.51.0-kafka-4.2.0 -n kafka --rm -i --restart=Never --command -- bin/kafka-console-consumer.sh --bootstrap-server my-cluster-kafka-bootstrap:9092 --topic pedido --from-beginning --property print.key=true --property key.separator=" | " --max-messages 1
+```
+
+## Configuração do Kafka usada pela aplicação
+
+O arquivo [docker-compose.kafka.yml] centraliza as configurações do Kafka para `api` e `worker`.
+
+Os campos principais que podem ser alterados por ambiente são:
 
 ```text
-BootstrapServers=host.docker.internal:9092
-Topic=pedido-confirmado
+KafkaSettings__SectionName
+Kafka__BootstrapServers
+Kafka__Topic
+Kafka__ClientId
+Kafka__SecurityProtocol
+Kafka__SaslMechanism
+Kafka__SaslUsername
+Kafka__SaslPassword
+Kafka__EnableSslCertificateVerification
 ```
 
-Quando o Kafka estiver rodando fora do compose principal, o `worker` usa `host.docker.internal` para alcancar a maquina host.
-
-Quando o `docker-compose.kafka.yml` for usado junto com o compose principal, o `worker` passa a usar automaticamente `kafka:9092`.
-
-## Publicacao no Kafka
+## Publicação no Kafka
 
 O `worker` publica eventos no Kafka usando o client `.NET` `Confluent.Kafka`.
 
 Isso significa que:
 
-- o client da aplicacao e o vendor Confluent
-- o broker pode ser Apache Kafka puro, Strimzi ou outro ambiente compativel com o protocolo Kafka
-- a principal diferenca entre ambientes fica concentrada em configuracao, como `BootstrapServers`, protocolo de seguranca e credenciais
+- o client da aplicação é o vendor Confluent
+- o broker pode ser Apache Kafka puro, Strimzi ou outro ambiente compatível com o protocolo Kafka
+- a principal diferenca entre ambientes fica concentrada em configuração, como `BootstrapServers`, protocolo de seguranca e credenciais
 
-No ambiente local com `docker-compose.kafka.yml`, o `worker` sobe configurado com:
-
-```text
-Kafka__BootstrapServers=kafka:9092
-Kafka__Topic=pedido-confirmado
-Kafka__ClientId=ecommerce-worker
-Kafka__SecurityProtocol=Plaintext
-```
-
-## Testes
+## Testes automatizados
 
 Executar build:
 
@@ -286,34 +304,45 @@ Executar testes:
 dotnet test tests/ECommerce.UnitTests/ECommerce.UnitTests.csproj
 ```
 
-Cobertura atual de dominio:
+## Encerramento
 
-- total do pedido
-- pedido sem itens nao pode ser confirmado
-- e-mail invalido lanca excecao
-- produto inativo nao pode ser adicionado ao pedido
-- remocao de item recalcula total
-- pedido ja confirmado nao pode ser confirmado novamente
+Parar a aplicação:
 
-## Revisao final
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.kafka.yml down
+```
 
-### Consistencia de nomes
+Parar os `port-forward`:
 
-- Os nomes principais estao consistentes com o dominio e com a linguagem do teste.
-- Termos tecnicos foram mantidos em ingles quando ligados a infraestrutura, como `Outbox`, `Worker` e `Kafka`.
+- fechar os dois terminais em que eles estão rodando
+- ou interromper com `Ctrl+C`
+
+Se quiser remover o topico:
+
+```powershell
+kubectl delete -f deploy/strimzi/kafkatopic-pedido.yaml
+```
+
+Se quiser remover o cluster Kafka:
+
+```powershell
+kubectl delete -f deploy/strimzi/kafka-my-cluster.yaml
+```
+
+## Revisão final
 
 ### Fronteiras arquiteturais
 
-- `Core` permanece sem dependencia de outras camadas.
+- `Core` permanece sem dependência de outras camadas.
 - `UseCases` depende apenas de `Core`.
-- `Infrastructure` implementa persistencia e integracoes tecnicas.
+- `Infrastructure` implementa persistência e integrações técnicas.
 - `WebApi` e `Worker` apenas compoem e executam os fluxos.
 
 ### Invariantes de dominio
 
-- cliente exige nome e email valido
-- produto exige nome e preco valido
+- cliente exige nome e email válido
+- produto exige nome e preço válido
 - pedido inicia em rascunho
-- pedido nao aceita produto inativo
-- pedido confirmado nao aceita novas alteracoes
-- pedido nao pode ser confirmado sem itens
+- pedido não aceita produto inativo
+- pedido confirmado não aceita novas alterações
+- pedido não pode ser confirmado sem itens

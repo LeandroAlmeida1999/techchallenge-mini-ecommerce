@@ -11,9 +11,11 @@ public sealed class OutboxProcessor(
     IOptions<KafkaOptions> kafkaOptions,
     ILogger<OutboxProcessor> logger) : IOutboxProcessor
 {
+    private const int BatchSize = 20;
+
     public async Task ProcessAsync(CancellationToken cancellationToken = default)
     {
-        var pendingMessages = await outboxRepository.GetPendingAsync(20, cancellationToken);
+        var pendingMessages = await outboxRepository.GetPendingAsync(BatchSize, cancellationToken);
 
         foreach (var message in pendingMessages)
         {
@@ -21,6 +23,7 @@ public sealed class OutboxProcessor(
             {
                 await integrationEventPublisher.PublishAsync(
                     kafkaOptions.Value.Topic,
+                    message.PartitionKey,
                     message.Payload,
                     cancellationToken);
 
@@ -35,12 +38,17 @@ public sealed class OutboxProcessor(
             }
             catch (Exception ex)
             {
+                var retriesAfterFailure = message.Retries + 1;
+                var statusAfterFailure = retriesAfterFailure >= OutboxMessage.MaxRetries
+                    ? "Exhausted"
+                    : "Failed";
+
                 logger.LogError(ex, "Error publishing outbox message {OutboxMessageId}.", message.Id);
 
                 await outboxRepository.UpdateAsync(
                     message with
                     {
-                        Status = "Failed",
+                        Status = statusAfterFailure,
                         Error = ex.Message
                     },
                     cancellationToken);

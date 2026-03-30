@@ -8,6 +8,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__SqlServer: Server=sqlserver,1433;Database=ECommerceDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True
+      KafkaSettings__SectionName: Kafka
+      Kafka__BootstrapServers: host.docker.internal:9092
+      Kafka__Topic: pedido
+      Kafka__ClientId: ecommerce-api
     ports:
       - "8080:8080"
     depends_on:
@@ -22,8 +26,10 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Development
       ConnectionStrings__SqlServer: Server=sqlserver,1433;Database=ECommerceDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True
+      KafkaSettings__SectionName: Kafka
       Kafka__BootstrapServers: host.docker.internal:9092
-      Kafka__Topic: pedido-confirmado
+      Kafka__Topic: pedido
+      Kafka__ClientId: ecommerce-worker
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

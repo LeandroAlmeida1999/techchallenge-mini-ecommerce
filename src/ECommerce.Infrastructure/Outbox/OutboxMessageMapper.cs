@@ -21,6 +21,7 @@ public static class OutboxMessageMapper
         return new OutboxMessageData(
             message.Id,
             message.EventType,
+            message.PartitionKey,
             message.Payload,
             message.OccurredOnUtc,
             message.ProcessedOnUtc,
@@ -42,6 +43,7 @@ public static class OutboxMessageMapper
         return OutboxMessage.Create(
             Guid.NewGuid(),
             nameof(PedidoConfirmadoIntegrationEvent),
+            domainEvent.ClienteId.ToString(),
             payload,
             domainEvent.OccurredOnUtc);
     }
