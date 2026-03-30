@@ -1,0 +1,45 @@
+services:
+  worker:
+    environment:
+      # Para Kafka local, mantenha `kafka:9092`.
+      # Para Kafka externo, altere apenas esta linha para o endpoint fornecido.
+      Kafka__BootstrapServers: kafka:9092
+      Kafka__Topic: pedido-confirmado
+      Kafka__ClientId: ecommerce-worker
+      # Ajuste este valor apenas se o broker externo exigir outro protocolo.
+      Kafka__SecurityProtocol: Plaintext
+      # Descomente e preencha se o ambiente externo exigir autenticacao.
+      # Kafka__SaslMechanism: SCRAM-SHA-512
+      # Kafka__SaslUsername: seu-usuario
+      # Kafka__SaslPassword: sua-senha
+      # Kafka__EnableSslCertificateVerification: true
+
+  kafka:
+    # Este broker local pode ser mantido para validacao completa em ambiente local.
+    # Se o Kafka for fornecido externamente, o servico pode continuar aqui sem uso.
+    image: apache/kafka:3.9.0
+    container_name: ecommerce-kafka
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-data:/tmp/kraft-combined-logs
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  kafka-data:
