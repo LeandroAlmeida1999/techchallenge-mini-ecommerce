@@ -63,6 +63,7 @@ scripts/
 - O mapeamento para DTOs foi mantido explicito, sem `AutoMapper`.
 - O Outbox garante persistencia atomica da mudanca de estado do pedido e do evento de integracao.
 - O worker publica com chave Kafka baseada no `ClienteId`.
+- A reserva de mensagens do outbox usa `UPDLOCK`, `READPAST` e `ROWLOCK` no SQL Server para permitir escalabilidade horizontal do worker sem processamento duplicado.
 
 ## Fluxo Principal
 
