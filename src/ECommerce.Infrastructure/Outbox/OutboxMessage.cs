@@ -32,6 +32,12 @@ public sealed class OutboxMessage
         return new OutboxMessage(id, eventType, partitionKey, payload, occurredOnUtc);
     }
 
+    public void MarkAsProcessing()
+    {
+        Status = "Processing";
+        Error = null;
+    }
+
     public void MarkAsProcessed(DateTime processedOnUtc)
     {
         ProcessedOnUtc = processedOnUtc;

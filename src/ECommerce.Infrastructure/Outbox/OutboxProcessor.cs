@@ -15,7 +15,7 @@ public sealed class OutboxProcessor(
 
     public async Task ProcessAsync(CancellationToken cancellationToken = default)
     {
-        var pendingMessages = await outboxRepository.GetPendingAsync(BatchSize, cancellationToken);
+        var pendingMessages = await outboxRepository.ReservePendingAsync(BatchSize, cancellationToken);
 
         foreach (var message in pendingMessages)
         {
