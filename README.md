@@ -119,7 +119,7 @@ Swagger:
 
 O projeto pode ser executado de quatro formas, dependendo de onde o Kafka/Strimzi ja esta rodando.
 
-### 1. Fluxo Manual com Strimzi Dedicado
+### 1. Fluxo Manual com Strimzi Dedicado (Configuração de Ambiente 1)
 
 Use este fluxo quando o cluster Kafka ja existir fora deste repositorio.
 
@@ -168,7 +168,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -ConsumeKafka
 ```
 
-### 2. Fluxo Manual com Strimzi Cluster Local
+### 2. Fluxo Manual com Strimzi Cluster Local (Configuração de Ambiente 2)
 
 Use este fluxo quando quiser subir o Kafka localmente com Kubernetes + Strimzi.
 
@@ -251,7 +251,7 @@ docker compose -f docker-compose.yml -f docker-compose.kafka.yml up --build -d
 powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -ConsumeKafka
 ```
 
-### 3. Fluxo Scriptado com Strimzi Dedicado
+### 3. Fluxo Scriptado com Strimzi Dedicado (Configuração de Ambiente 3)
 
 Use este fluxo quando o cluster Kafka ja existir e voce quiser subir so a aplicacao com menos comandos.
 
@@ -281,7 +281,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1 -ConsumeKafka
 powershell -ExecutionPolicy Bypass -File .\scripts\stop-local.ps1
 ```
 
-### 4. Fluxo Scriptado com Strimzi Cluster Local
+### 4. Fluxo Scriptado com Strimzi Cluster Local (Configuração de Ambiente 4)
 
 Use este fluxo quando quiser preparar Kafka local + aplicacao com o minimo de comandos.
 
